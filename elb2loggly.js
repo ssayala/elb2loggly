@@ -25,7 +25,7 @@ BUCKET_LOGGLY_TAG_NAME = 'loggly-tag'
 // Note: You either need to specify a cutomer token in this script or via the S3 bucket tag else an error is logged.
 DEFAULT_LOGGLY_URL = null
 
-if ( typeof LOGGLY_TOKEN !== 'undefined' ) { 
+if ( typeof LOGGLY_TOKEN !== 'undefined' ) {
     DEFAULT_LOGGLY_URL = LOGGLY_URL_BASE + LOGGLY_TOKEN;
 
     if ( typeof LOGGLY_TAG !== 'undefined' ) {
@@ -65,7 +65,7 @@ var parse_s3_log = function(data, encoding, done) {
       // Split clientip:port and backendip:port at index 2,3
       data.splice(3,1,data[3].split(':'))
       data.splice(2,1,data[2].split(':'))
-      
+
       // Pull the method from the request.  (WTF on Amazon's decision to keep these as one string.)
       var requestIndex = data.length - 4;
       var url_mash = data[requestIndex];
@@ -73,7 +73,12 @@ var parse_s3_log = function(data, encoding, done) {
       url_mash = url_mash.split(' ',2)
 
       data.splice(requestIndex,1, url_mash);
-      data = _.flatten(data)
+      data = _.flatten(data);
+      for(var i = 0; i < data.length; i++) {
+        if (data[i] && isNaN(data[i]) === false) {
+          data[i] = Number(data[i]);
+        }
+      }
 
       if ( data.length == COLUMNS.length ) {
         this.push(_.zipObject(COLUMNS, data));
@@ -115,7 +120,7 @@ exports.handler = function(event, context) {
 
 					if (s3tag[BUCKET_LOGGLY_TOKEN_NAME]) {
 					    LOGGLY_URL = LOGGLY_URL_BASE + s3tag[BUCKET_LOGGLY_TOKEN_NAME];
-					    
+
 					    if ( s3tag[BUCKET_LOGGLY_TAG_NAME] ) {
 						LOGGLY_URL += '/tag/' + s3tag[BUCKET_LOGGLY_TAG_NAME];
 					    }
@@ -123,7 +128,7 @@ exports.handler = function(event, context) {
 					    LOGGLY_URL = DEFAULT_LOGGLY_URL
 					}
 				    }
-				    
+
 				    if ( LOGGLY_URL ) next();
 				    else next('No Loggly customer token. Set S3 bucket tag ' + BUCKET_LOGGLY_TOKEN_NAME)
 			   });
@@ -140,7 +145,7 @@ exports.handler = function(event, context) {
 
 			function upload(data, next) {
 			    // Stream the logfile to loggly.
-			    
+
 			    var csvToJson = csv({objectMode: true, delimiter: ' '})
 			    var parser = new Transform({objectMode: true})
 			    parser._transform = parse_s3_log
